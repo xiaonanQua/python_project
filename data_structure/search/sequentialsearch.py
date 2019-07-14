@@ -23,12 +23,12 @@ def sequential_search(data, key):
 
 
 def binary_search(data, key):
-    '''
-    二分查找，也就是折半查找
+    """
+    二分查找，也就是折半查找。对列表数据的位置进行折半划分。
     :param data: 查找的数据
     :param key: 查找关键词
     :return: 查找结果
-    '''
+    """
     # 设置左、中坐标
     low = 0
     high = len(data) - 1
@@ -44,9 +44,36 @@ def binary_search(data, key):
     return None
 
 
+def interpolation_search(data, key):
+    """
+    插值查找，顾名思义就是通过数据值进行查找，是折半查找的一种改进。
+    即对mid=int((low+high)/2)进行改进，
+    修改成mid=int(low+(high-low)*(key-data[low])/(data[high]-data[low])
+    :param data: 查找的列表
+    :param key: 查找的关键词
+    :return: 查找的位置
+    """
+    # 设置低、高位置
+    low = 0
+    high = len(data) - 1
+    # 迭代查找满足的值
+    while low <= high:  # 跳出循环的条件
+        # 求出中间坐标
+        mid = int(low + (high - low)*(key - data[low])/(data[high] - data[low]))
+        if key < data[mid]:  # 向左遍历
+            high = mid - 1
+        elif key > data[mid]:
+            low = mid + 1
+        else:
+            return mid
+    return None
+
+
 if __name__ == '__main__':
     data = [1, 3, 5, 6, 3, 0, 5]
     data_seq = [1, 2, 3, 4, 5, 6, 7]
     print(sequential_search(data, 3))
     # 二分查找
     print(binary_search(data_seq, 6))
+    # 插值查找
+    print(interpolation_search(data_seq, 3))
