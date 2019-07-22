@@ -20,6 +20,7 @@ def get_cost_derivative(index):
     :return:
     """
 
+
 def run_gradient_descent():
     global parameter_vector
     # 调整这些值，为预测的输出设置一个容差值
