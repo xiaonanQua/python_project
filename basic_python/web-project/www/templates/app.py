@@ -16,7 +16,7 @@ def index(request):
 @asyncio.coroutine
 def init(loop):
     app =web.Application(loop=loop)
-    app.router.add_route('Get', '/', index)  # 设置路由请求方式get,响应路径
+    app.router.add_route('GET', '/', index)  # 设置路由请求方式get,响应路径
     srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 9001)  # 设置服务路径和端口
     logging.info('server started at http://127.0.0.1:9000')
     return srv
