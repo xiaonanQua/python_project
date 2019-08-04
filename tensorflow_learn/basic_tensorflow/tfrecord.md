@@ -5,14 +5,13 @@ date: 2019-8-02
 tages: 
     -  DeepLearning
 ---
-> 这篇文章，我将详细讲解如何将CIFAR-10数据集转化成TFRecord格式，并对TFRecord格式的文件进行读取。开发环境：python3.5(python3+都可以)，Tensorflow r1.14(因为tensorflow新版本对一些函数重新进行归类，所以有些方法在你的版本会不在一个类中，这些可以根据自己版本查阅官方文档)[实验代码](https://github.com/xiaonanQua/python_project/blob/master/tensorflow_learn/basic_tensorflow/tfrecord.py)
+> 这篇文章，我将详细讲解如何将CIFAR-10数据集转化成TFRecord格式，并对TFRecord格式的文件进行读取。开发环境：python3.6(python3+都可以)，Tensorflow r1.14(因为tensorflow新版本对一些函数重新进行归类，所以有些方法在你的版本会不在一个类中，这些根据自己的版本查阅官方文档)[实验代码](https://github.com/xiaonanQua/python_project/blob/master/tensorflow_learn/basic_tensorflow/tfrecord.py)
 <!-- more-->
 
 # 文章架构
 1. 将CIFAR-10数据集转化成TFRecord格式
 - 理解tf.train.Example()函数实现数据的序列化
-2. 读取TFRecord文件
-- 
+2. 读取TFRecord文件 
 
 ## 将CIFAR-10数据集转化成TFRecord格式
 
@@ -103,3 +102,56 @@ def convert_to_tfrecord(images, labels, save_file_dir, save_file_name):
 ```
 ## 读取TFRecord文件
 
+对于TFRecord文件的读取，也和转化是一样的，不是直接就使用读取类那么简单的事。首先，你得创建一个队列对输入文件列表进行维护，这里的输入文件就是你需要读取的文件,在tensorflow中使用tf.train.string_input_producer([file_path])函数来创建文件队列。然后，你需要使用tf.TFRecordReader()定义读取类，去获取队列中的序列化样本。对于获得的序列化样本，我们需要使用解析工具进行解析，因为在进行TFRecord的转化时，我们定义了很多属性，这个工具就是解析出这些样本。也就是使用tf.io.parse_single_example()（若是以前版本是通过tf.parse_single_example()进行调用）函数解析读取的样本，使用tf.io.FixedLenFeature()（以前版本是tf.FixedLenFeature）函数对各个属性进行解析。最后，使用decode_raw()将原先转化成字符串的图像数据解码成图像数组，并将标签、形状属性由int64转化成int32。具体函数代码如下所示：
+```Python
+def read_tfrecords(file_dir, file_name):
+    """
+    读取tfrecords格式的文件
+    :param file_dir: 文件目录
+    :param file_name: 文件名称
+    :return:images,labels,[width, shape, depth]
+    """
+    # 文件路径
+    file_path = os.path.join(file_dir, file_name)
+
+    # 创建TFRecordReader类的实例
+    reader = tf.TFRecordReader()
+
+    # 创建一个队列对输入文件列表进行维护
+    file_queue = tf.train.string_input_producer([file_path])
+    # 使用TFRecordReader.read()函数从文件中读取一个样本，使用.read_up_to()函数一次性读取多个样本
+    _, serialized_example = reader.read(file_queue)
+    # 使用sparse_single_example()函数解析读取的样本
+    features = tf.io.parse_single_example(serialized_example,   features={ # 使用FixedLenFeature类对属性进行解析
+                                           "image_raw": tf.io.FixedLenFeature([], tf.string),
+                                           "label": tf.io.FixedLenFeature([], tf.int64),
+                                           "width": tf.io.FixedLenFeature([], tf.int64),
+                                           "height": tf.io.FixedLenFeature([], tf.int64),
+                                           "depth": tf.io.FixedLenFeature([], tf.int64)
+                                       }))
+
+    # decode_raw()用于将字符串解码成图像对应的像素数组
+    images = tf.decode_raw(features['image_raw'], tf.uint8)
+    # 使用cast()函数进行类型转换
+    labels = tf.cast(features['label'], tf.int32)
+    width = tf.cast(features['width'], tf.int32)
+    height = tf.cast(features['height'], tf.int32)
+    depth = tf.cast(features['depth'], tf.int32)
+
+    return images, labels, [width, height, depth]
+```
+另外需要说明一下，在主函数中进行读取操作时，需要用到协调器和开启多线程，因为使用了队列进行文件的读取，要不然读取的速度几乎为0。还有一点，对于文件的读取一定要放在启动多线程之前，若是放在之后线程无法捕捉这个操作，也就没有处理这个操作的线程。至于tensorflow中的队列、多线程知识，将在另外的篇章中进行说明。代码如下所示：
+```Python
+    with tf.Session() as sess:
+        # 读取TFRecord格式的数据
+        images, labels, shape = read_tfrecords(file_dir, file_name[0] + '.tfrecords')
+        # 启动多线程处理输入数据
+        coordinator = tf.train.Coordinator()  # 协调器
+        threads = tf.train.start_queue_runners(sess=sess, coord=coordinator)  # 开启所有队列线程
+        for i in range(len(train_data)):
+            image, label, shape = sess.run([images, labels, shape])
+            print(label)
+            print(shape)
+            print(image.shape)
+            break
+```
