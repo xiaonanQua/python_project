@@ -66,6 +66,7 @@ def convert_to_tfrecord(images, labels, save_file_dir, save_file_name):
     for index in range(num_examples):
         # 将图片矩阵转化成string格式
         image_to_string = images[index].tostring()
+
         # 定义需要保存的属性字典，并添加到总的属性中
         feature = {'width': _int64_feature(image_width),
                    'height': _int64_feature(image_height),
@@ -164,12 +165,15 @@ def main():
         # 启动多线程处理输入数据
         coordinator = tf.train.Coordinator()  # 协调器
         threads = tf.train.start_queue_runners(sess=sess, coord=coordinator)  # 开启所有队列线程
+
         for i in range(len(train_data)):
-            image, label, shape = sess.run([images, labels, shape])
+            image, label = sess.run([images, labels])
+            w, h, d = sess.run(shape)
             print(label)
-            print(shape)
             print(image.shape)
-            break
+            # print(shape)
+
+
 
 
 if __name__ == '__main__':
