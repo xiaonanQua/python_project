@@ -2,6 +2,8 @@
 配置文件路径
 """
 import os
+
+
 # 数据集根目录、项目根目录
 root_dataset = '/home/xiaonan/Dataset/'
 root_project = '/home/xiaonan/python_project/tensorflow_learn/'

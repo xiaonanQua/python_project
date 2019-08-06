@@ -7,6 +7,7 @@ import os
 import pickle as pk
 import numpy as np
 import tensorflow as tf
+import data_load.queue_linked_list as queue
 
 
 class LoadDataSet(object):
@@ -17,7 +18,7 @@ class LoadDataSet(object):
         self.svhn_dir = cfg.svhn_dir
         self.svhn_file_name = cfg.svhn_file_name
 
-    def load_svhn(self, file_type, valid_size=None):
+    def load_svhn(self, file_type):
         """
         加载svhn数据集
         :param file_type: 文件类型
@@ -108,20 +109,64 @@ class LoadDataSet(object):
                 labels_list.append(label)
         return np.array(images_list), np.array(labels_list)
 
-    def batch_and_shuffle_data(self, images, labels, batch_size, shuffle=False):
+    def batch_and_shuffle_data(self, images, labels, batch_size, data_queue, shuffle=False):
         """
-        获得批次大小的数据
-        :param images:
-        :param labels:
-        :param batch_size:
-        :param shuffle:
+        获得批次大小的数据并进行洗牌功能
+        :param images: 图像数据
+        :param labels: 标签数据
+        :param batch_size: 批次大小
+        :param shuffle: 是否打乱批次数据的顺序
         :return:
         """
+        # 定义批次图像、标签数据
+        batch_images = []
+        batch_labels = []
+
+        # 获取batch_size大小的数据
+        for i in range(batch_size):
+            # 若队列为空,则将总的数据添加到队列中
+            if data_queue.is_empty():
+                data_queue.data_enqueue(images=images, labels=labels)
+            # 从队列中出队数据
+            image, label = data_queue.dequeue()
+            # 将图像矩阵、标签添加到批次列表中
+            batch_images.append(image)
+            batch_labels.append(label)
+        if shuffle:
+            # 定义洗牌后的批次图像、标签数据
+            shuffle_batch_images = []
+            shuffle_batch_labels = []
+            # 根据batch_size生成索引
+            index_list = [x for x in range(batch_size)]
+            # 使用numpy中随机洗牌函数对索引进行洗牌
+            np.random.shuffle(index_list)
+            print("洗牌后的索引：{}".format(index_list))
+            for index in index_list:
+                shuffle_batch_images.append(batch_images[index])
+                shuffle_batch_labels.append(batch_labels[index])
+            # 将洗牌后的数据赋值给原来变量
+            batch_images = shuffle_batch_images
+            batch_labels = shuffle_batch_labels
+        # 将列表数据转化成N维数组数据
+        batch_images, batch_labels =np.array(batch_images), np.array(batch_labels)
+        return batch_images, batch_labels
 
 
 if __name__ == '__main__':
     dataset = LoadDataSet()
-    svhn = dataset.load_svhn(file_type='train')
-
+    images, labels = dataset.load_svhn(file_type='train')
+    print(images.shape)
+    print(np.ndarray.tolist(labels[:30]))
+    print(np.ndarray.tolist(labels[30:60]))
+    # 获得链表队列对象
+    data_queue = queue.QueueLink()
+    for i in range(2):
+        images, labels = dataset.batch_and_shuffle_data(images=images,
+                                                    labels=labels,
+                                                    data_queue=data_queue,
+                                                    batch_size=30,
+                                                    shuffle=False)
+        print(images.shape)
+        print(np.ndarray.tolist(labels))
 
 

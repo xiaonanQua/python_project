@@ -38,8 +38,8 @@ class PreprocessData(object):
         :return:
         """
         # 获得图像矩阵中最小、最大值
-        min_value = np.argmin(images)
-        max_value = np.argmax(images)
+        min_value = np.min(images)
+        max_value = np.max(images)
         # 进行归一化处理，对图像矩阵进行最小、最大操作
         images = (images-min_value)/(max_value-min_value)
         return images
@@ -121,6 +121,7 @@ class PreprocessData(object):
         for index in range(num_examples):
             # 将图片矩阵转化成string格式
             image_to_string = images[index].tostring()
+            label_to_string = labels[index].tostring()
 
             # 定义需要保存的属性字典，并添加到总的属性中
             feature = {'label': self._int64_feature(int(labels[index])),
