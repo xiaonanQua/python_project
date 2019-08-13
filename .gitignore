@@ -4,3 +4,7 @@ python_venv/
 tensorflow_venv/
 personal_experiments/
 tfrecord/
+__pycache__/
+model/
+log/
+sava_data/

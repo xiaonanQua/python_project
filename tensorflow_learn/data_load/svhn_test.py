@@ -7,6 +7,7 @@ import data_load.loaddata as load
 import data_load.preprocessdata as preprocess
 import data_load.queue_linked_list as queue
 import matplotlib.pyplot as plt
+cfg=cfg.Config()
 
 if __name__ == '__main__':
     # 获取数据集、预处理、队列对象
@@ -27,6 +28,20 @@ if __name__ == '__main__':
                                                                                   train_labels.shape,
                                                                                   valid_data.shape,
                                                                                   valid_labels.shape))
+    print("划分训练集成5批次...")
+    # train_labels = preprocess.one_hot_encode(train_labels)
+    print(train_data.shape, train_labels.shape)
+    preprocess.divide_batch_data(images=train_data,
+                                 labels=train_labels,
+                                 num_batch=5,
+                                 save_file_dir=cfg.save_svhn_batch_dir,
+                                 save_file_name='svhn',
+                                 save_type='tfrecord')
+    train_data, train_labels = svhn.load_preprocess_svhn_tfrecord(cfg.save_svhn_batch_dir,
+                                                                  'svhn_batch-1-of-5')
+    # train_data, train_labels = svhn.load_preprocess_svhn_tfrecord(cfg.save_svhn_batch_dir,
+    #                                                               'svhn_batch_*')
+    print(train_data.shape, train_labels[0:4].tolist())
     # 进行数据归一化、标签onehot处理
     # train_data = preprocess.normalize(train_data[:90])
     # train_labels = preprocess.one_hot_encode(train_labels[:90])
@@ -41,7 +56,7 @@ if __name__ == '__main__':
                                                                train_labels[:90],
                                                                30,
                                                                data_queue=queue,
-                                                               shuffle=False)
+                                                               shuffle=True)
         print(batch_data.shape, batch_labels.tolist())
 
 
