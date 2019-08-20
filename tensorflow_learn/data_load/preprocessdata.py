@@ -126,7 +126,7 @@ class PreprocessData(object):
             # 将图片矩阵转化成string格式
             image_to_string = images[index].tostring()
             # label_to_string = labels[index].tostring()
-
+            # print(labels[index])
             # 定义需要保存的属性字典，并添加到总的属性中
             feature = {
                        'label': self._int64_feature(int(labels[index])),

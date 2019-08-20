@@ -37,11 +37,12 @@ if __name__ == '__main__':
                                  save_file_dir=cfg.save_svhn_batch_dir,
                                  save_file_name='svhn',
                                  save_type='tfrecord')
-    train_data, train_labels = svhn.load_preprocess_svhn_tfrecord(cfg.save_svhn_batch_dir,
+    print(train_labels[:30].tolist())
+    train_data, train_labels = svhn.load_preprocess_data_tfrecord(cfg.save_svhn_batch_dir,
                                                                   'svhn_batch-1-of-5')
     # train_data, train_labels = svhn.load_preprocess_svhn_tfrecord(cfg.save_svhn_batch_dir,
     #                                                               'svhn_batch_*')
-    print(train_data.shape, train_labels[0:4].tolist())
+    print(train_data.shape, train_labels[0:30].tolist())
     # 进行数据归一化、标签onehot处理
     # train_data = preprocess.normalize(train_data[:90])
     # train_labels = preprocess.one_hot_encode(train_labels[:90])

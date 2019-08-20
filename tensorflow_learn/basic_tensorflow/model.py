@@ -8,6 +8,7 @@ model.ckpt.meta文件保存了计算图的结构,或者说是神经网络的结�
 import os
 import tensorflow as tf
 
+
 class Model(object):
     def __init__(self):
         # 定义项目目录,模型保存目录, 模型保存路径

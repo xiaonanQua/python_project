@@ -5,12 +5,14 @@ import data_load.config as cfg
 import scipy.io as sio
 import os
 import gzip
+import struct
 import pickle as pk
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import data_load.queue_linked_list as queue
 import data_load.preprocessdata as preprocess
+import data_load.imageprocess as image_process
 from tensorflow.examples.tutorials.mnist import input_data
 cfg = cfg.Config()
 
@@ -25,11 +27,10 @@ class LoadDataSet(object):
         self.mnist_dir = cfg.mnist_dir
         self.mnist_file_name = cfg.mnist_file_name
 
-    def load_svhn(self, file_type):
+    def load_svhn_dataset(self, file_type):
         """
         加载svhn数据集
         :param file_type: 文件类型
-        :param valid_size: 划分验证集的比例
         :return:
         """
         if file_type is 'train':
@@ -49,15 +50,15 @@ class LoadDataSet(object):
         labels = svhn['y']
         return data, labels
 
-    def load_preprocess_svhn_pickle(self, preprocess_file_dir, preprocess_file_name):
+    def load_pickle_data(self, file_dir, file_name):
         """
-        加载pickle打包格式的预处理数据
-        :param preprocess_file_dir: 预处理文件路径
-        :param preprocess_file_name: 预处理文件名称
+        加载pickle打包格式的文件数据
+        :param file_dir: 文件目录
+        :param file_name: 文件名称
         :return: 图像矩阵数据，标签
         """
         # 文件路径
-        file_path = os.path.join(preprocess_file_dir, preprocess_file_name)
+        file_path = os.path.join(file_dir, file_name)
         # 判断文件是否存在
         if os.path.isfile(file_path) is False:
             raise ValueError('文件不存在！')
@@ -66,24 +67,25 @@ class LoadDataSet(object):
             data = pk.load(file)
         return data[0], data[1]
 
-    def load_preprocess_svhn_tfrecord(self, preproce_file_dir, preprocess_file_name, mutli_files=False):
+    def load_tfrecord_data(self, file_dir, file_name, multi_files=False, dtype=tf.uint8):
         """
-        加载预处理后的svhn数据集
-        :param preproce_file_dir: 预处理的文件目录
-        :param preprocess_file_name: 预处理的文件名称
+        加载以TFRecord格式保存的数据集
+        :param file_dir: 数据存放的文件目录
+        :param file_name: 数据的文件名称
         :param mutli_files: boolean,是否进行多文件读取
+        :param dtype: 这个属性是用来设置读取后的图像数据转化的格式,因为读取的数据是二进制文件,转化成十进制需要相应的转化格式.
         :return: 图像矩阵数据，标签
         """
         # 定义图片、标签列表
         images_list = []
         labels_list = []
         # 文件路径
-        file_path = os.path.join(preproce_file_dir, preprocess_file_name)
+        file_path = os.path.join(file_dir, file_name)
 
         # 创建TFRecordReader类的实例
         reader = tf.TFRecordReader()
 
-        if mutli_files:
+        if multi_files:
             # 进行多个文件读取
             files = tf.io.match_filenames_once(file_path)  # 将传入的多个文件整理成文件列表
             file_queue = tf.train.string_input_producer(files)  # 将文件列表以队列的方式进行管理
@@ -99,11 +101,11 @@ class LoadDataSet(object):
                                                   "image_raw": tf.io.FixedLenFeature([], tf.string),
                                                   "label": tf.io.FixedLenFeature([], tf.int64),
                                                   # "label": tf.io.FixedLenFeature([], tf.string),
-                                                  "num_example":tf.io.FixedLenFeature([], tf.int64)
+                                                  "num_example": tf.io.FixedLenFeature([], tf.int64)
                                               })
 
         # decode_raw()用于将字符串解码成图像对应的像素数组
-        images = tf.decode_raw(features['image_raw'], tf.uint8)
+        images = tf.decode_raw(features['image_raw'], dtype)
         # labels = tf.decode_raw(features['label'], tf.uint8)
         # 使用cast()函数进行类型转换
         labels = tf.cast(features['label'], tf.int32)
@@ -120,6 +122,7 @@ class LoadDataSet(object):
             for i in range(num_example):
                 # 每次循环获得队首数据并添加进列表中
                 image, label = sess.run([images, labels])
+                # print(label)
                 images_list.append(image)
                 labels_list.append(label)
 
@@ -135,6 +138,7 @@ class LoadDataSet(object):
         :param images: 图像数据
         :param labels: 标签数据
         :param batch_size: 批次大小
+        :param data_queue: 队列对象,用于创建文件队列
         :param shuffle: 是否打乱批次数据的顺序
         :return:
         """
@@ -152,6 +156,7 @@ class LoadDataSet(object):
             # 将图像矩阵、标签添加到批次列表中
             batch_images.append(image)
             batch_labels.append(label)
+
         if shuffle:
             # 定义洗牌后的批次图像、标签数据
             shuffle_batch_images = []
@@ -164,18 +169,22 @@ class LoadDataSet(object):
             for index in index_list:
                 shuffle_batch_images.append(batch_images[index])
                 shuffle_batch_labels.append(batch_labels[index])
+
             # 将洗牌后的数据赋值给原来变量
             batch_images = shuffle_batch_images
             batch_labels = shuffle_batch_labels
+
         # 将列表数据转化成N维数组数据
         batch_images, batch_labels =np.array(batch_images), np.array(batch_labels)
+
         return batch_images, batch_labels
 
-    def multi_thread_load_data(self, file_dir, file_name, batch_size=None, capacity=None):
+    def multi_thread_load_data(self, file_dir, file_name, dtype=tf.uint8, batch_size=None, capacity=None):
         """
         多线程加载文件数据
         :param file_dir: 文件存在的目录
         :param file_name: 文件名称
+        :param dtype: 读取二进制图片数据时,进行十进制转化的类型和位数
         :param batch_size: 批次大小
         :param capacity: 队列缓存的样本数量
         :return:
@@ -201,7 +210,7 @@ class LoadDataSet(object):
                                               })
 
         # decode_raw()用于将字符串解码成图像对应的像素数组
-        images = tf.decode_raw(features['image_raw'], tf.uint8)
+        images = tf.decode_raw(features['image_raw'], dtype)
         # 使用cast()函数进行类型转换
         labels = tf.cast(features['label'], tf.int32)
         num_example = tf.cast(features['num_example'], tf.int32)
@@ -234,60 +243,56 @@ class LoadDataSet(object):
 
         return image, label
 
-    def load_mnist(self):
+    def load_mnist_dataset(self, image_name, label_name, num_examples=60000):
         """
         读取mnist文件
+        :param image_name: 需要读取的图像文件名称
+        :param label_name: 需要读取的标签文件名称
+        :param num_examples: 需要读取的图像,标签的数量
         :return:
         """
+        # 定义图像大小,图像\标签文件路径
         image_size = 28
-        num_images = 6
-        for i in range(2):
-            file_path = os.path.join(self.mnist_dir, self.mnist_file_name[i])
-            with gzip.open(file_path, 'r') as file:
-                if i == 0:
-                    file.read(16)
-                    buffer = file.read(image_size*image_size*num_images)
-                    images = np.frombuffer(buffer, dtype=np.uint8).astype(np.float32)
-                    images = images.reshape(num_images, image_size, image_size, 1)
-                else:
-                    file.read(8)
-                    buffer = file.read(num_images)
-                    labels = np.frombuffer(buffer, dtype=np.uint8).astype(np.int64)
+        image_file_path = os.path.join(self.mnist_dir, image_name)
+        label_file_path = os.path.join(self.mnist_dir, label_name)
+
+        # 进行图像文件的读取
+        with gzip.open(image_file_path, 'r') as file:
+            # 进行16个字节的读取
+            file.read(16)
+            # 读取相应图片数量的二进制流数据
+            buffer = file.read(image_size * image_size * num_examples)
+            # 使用frombuffer()函数将二进制数据转化成32位float类型
+            images = np.frombuffer(buffer, dtype=np.uint8).astype(np.float32)
+            # 重塑图像的形状
+            images = images.reshape(num_examples, image_size, image_size, 1)
+
+        # 进行标签文件的读取
+        with gzip.open(label_file_path, 'r') as file:
+            # 进行8个字节的读取
+            file.read(8)
+            # 读取相应图片数量的二进制流数据
+            buffer = file.read(num_examples)
+            # 使用frombuffer()函数将二进制数据转化成32位int类型
+            labels = np.frombuffer(buffer, dtype=np.uint8).astype(np.int32)
+
         return images, labels
 
 
 if __name__ == '__main__':
+    # 实例化数据集,图像处理类
     dataset = LoadDataSet()
-    # images, labels = dataset.load_svhn(file_type='train')
-    # print(images.shape)
-    # print(np.ndarray.tolist(labels[:30]))
-    # print(np.ndarray.tolist(labels[30:60]))
-    # # 获得链表队列对象
-    # data_queue = queue.QueueLink()
-    # for i in range(2):
-    #     images, labels = dataset.batch_and_shuffle_data(images=images,
-    #                                                 labels=labels,
-    #                                                 data_queue=data_queue,
-    #                                                 batch_size=30,
-    #                                                 shuffle=False)
-    #     print(images.shape)
-    #     print(np.ndarray.tolist(labels))
-    # image_batch, label_batch = dataset.multi_thread_load_data(cfg.save_svhn_batch_dir,
-    #                                                           'svhn_batch-*',
-    #                                                           batch_size=10,
-    #                                                           capacity=5000)
-    images, labels = dataset.load_mnist()
-    mnist = input_data.read_data_sets(cfg.mnist_dir, reshape=False)
-    image = mnist.train.images[:20]
-    label = mnist.train.labels[:20]
-    print(image[0])
-    print(images[0])
-    # image = np.asarray(images[4]).squeeze()
-    # plt.imshow(image)
-    # plt.show()
-    # print(images.shape, labels)
-    # print(images.shape, type(labels))
-    preprocess = preprocess.PreprocessData()
-    preprocess.save_data_tfrecord(images, labels, cfg.save_mnist_dir, 'mnist')
-    images, labels = dataset.load_preprocess_svhn_tfrecord(cfg.save_mnist_dir, 'mnist')
-    print(images.shape, labels)
+    image_process = image_process.ImageProcess()
+
+    train_data, train_labels = dataset.load_mnist_dataset(dataset.mnist_file_name[0],
+                                                          dataset.mnist_file_name[1])
+    test_data, test_labels = dataset.load_mnist_dataset(dataset.mnist_file_name[2],
+                                                        dataset.mnist_file_name[3],
+                                                        num_examples=10000)
+    print(train_data.shape, train_labels.shape)
+    print(test_data.shape, test_labels.shape)
+    image_process.show_image(test_data[0])
+    print(test_labels[0])
+
+
+

@@ -23,13 +23,14 @@ class Config(object):
 
         # mnist数据集目录,文件名称
         self.mnist_dir = self.root_dataset + 'mnist/'
-        self.mnist_file_name = ['train-images-idx3-ubyte.gz', 'train-labels-idx1-ubyte.gz']
+        self.mnist_file_name = ['train-images-idx3-ubyte.gz', 'train-labels-idx1-ubyte.gz',
+                                't10k-images-idx3-ubyte.gz', 't10k-labels-idx1-ubyte.gz']
 
         # 数据保存的目录、(svhn、cifar,mnist)批次保存目录
         self.save_data_dir = self.root_project + 'data_load/save_data/'
         self.save_svhn_batch_dir = self.save_data_dir + 'svhn/batch/'
 
-        self.save_mnist_dir = self.root_project + 'mnist/'
+        self.save_mnist_dir = self.save_data_dir + 'mnist/'
 
         self._init()
 
