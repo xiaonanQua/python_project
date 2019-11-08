@@ -56,7 +56,7 @@ with tf.name_scope('four'):
     w8 = tf.Variable(tf.random_uniform([2, 3], minval=2, maxval=6), name='w8')
     print(w8.name)
 
-with tf.Session() as sess:
+with tf.Session(confi) as sess:
     # 初始化所有变量
     tf.global_variables_initializer().run()
     print(sess.run(y2))  # 因为随机种子的设置，每次结果都相同
